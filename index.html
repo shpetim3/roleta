@@ -151,7 +151,7 @@
     }
 
 function exportToPDF() {
-  const element = document.getElementById('summarySection');
+  const element = document.body; // Export entire visible content
   const opt = {
     margin: 10,
     filename: 'roleta-summary.pdf',
@@ -163,12 +163,10 @@ function exportToPDF() {
   const buttons = document.querySelectorAll('.no-print');
   buttons.forEach(btn => btn.style.display = 'none');
 
-  // Mobile detection
   const isMobile = /Mobi|Android/i.test(navigator.userAgent);
 
   if (isMobile) {
     alert("On mobile, the PDF will open in a new tab. Use your browser’s download or share option.");
-
     html2pdf().from(element).set(opt).outputPdf('bloburl').then(url => {
       window.open(url, '_blank');
       buttons.forEach(btn => btn.style.display = '');
@@ -179,6 +177,7 @@ function exportToPDF() {
     });
   }
 }
+
   </script>
 </body>
 </html>
