@@ -13,10 +13,11 @@
     }
     #summarySection {
       width: 100% !important;
-      max-width: none !important;
+      max-width: 190mm !important;
       font-size: 12pt;
       color: #000;
       background: #fff;
+      padding: 10mm;
     }
     #summarySection h2 {
       font-size: 16pt;
@@ -24,6 +25,14 @@
     }
     #summarySection li {
       page-break-inside: avoid;
+    }
+  }
+  @media screen and (max-width: 640px) {
+    #summarySection {
+      padding: 4mm;
+    }
+    .flex-col.md\\:flex-row {
+      flex-direction: column;
     }
   }
 </style>
@@ -174,13 +183,15 @@
       }
 
       const opt = {
-        margin: [10, 10, 10, 10],
+        margin: [8, 8, 8, 8], // Reduced margins for mobile
         filename: 'roleta-summary.pdf',
-        image: { type: 'jpeg', quality: 0.98 },
+        image: { type: 'jpeg', quality: 0.95 },
         html2canvas: { 
-          scale: window.devicePixelRatio || 2,
+          scale: Math.min(window.devicePixelRatio, 2), // Cap scale for mobile
           useCORS: true,
-          logging: false
+          logging: false,
+          windowWidth: 794, // A4 width in pixels at 96 DPI
+          windowHeight: 1123 // A4 height in pixels at 96 DPI
         },
         jsPDF: { 
           unit: 'mm', 
@@ -191,11 +202,12 @@
         }
       };
 
-      // Create a clone of the summary section to modify for PDF
+      // Create a clone of the summary section
       const clone = element.cloneNode(true);
-      clone.style.width = '190mm'; // A4 width minus margins
-      clone.style.padding = '10mm';
-      
+      clone.style.width = '190mm';
+      clone.style.padding = '8mm';
+      clone.style.boxSizing = 'border-box';
+
       // Remove no-print elements from clone
       const buttons = clone.querySelectorAll('.no-print');
       buttons.forEach(btn => btn.remove());
@@ -203,8 +215,8 @@
       // Add a header for the PDF
       const header = document.createElement('div');
       header.style.textAlign = 'center';
-      header.style.marginBottom = '20px';
-      header.innerHTML = '<h1 style="font-size: 20pt;">Roleta Termoizoluse Summary</h1>';
+      header.style.marginBottom = '15px';
+      header.innerHTML = '<h1 style="font-size: 18pt;">Roleta Termoizoluse Summary</h1>';
       clone.insertBefore(header, clone.firstChild);
 
       // Show loading state
@@ -217,16 +229,40 @@
         html2pdf()
           .set(opt)
           .from(clone)
-          .save()
-          .then(() => {
+          .toPdf()
+          .get('pdf')
+          .then(pdf => {
+            const blob = pdf.output('blob');
+            const url = URL.createObjectURL(blob);
+            
+            // For mobile, prompt user to download manually
+            if (/Mobi|Android/i.test(navigator.userAgent)) {
+              alert('PDF generated! Tap the link below to download or share.');
+              const link = document.createElement('a');
+              link.href = url;
+              link.download = 'roleta-summary.pdf';
+              link.style.display = 'block';
+              link.className = 'no-print text-blue-600 underline text-center mt-2';
+              link.textContent = 'Download PDF';
+              document.getElementById('summarySection').appendChild(link);
+              
+              // Auto-remove link after 30 seconds
+              setTimeout(() => {
+                if (link.parentNode) link.parentNode.removeChild(link);
+                URL.revokeObjectURL(url);
+              }, 30000);
+            } else {
+              pdf.save();
+              URL.revokeObjectURL(url);
+            }
+          })
+          .finally(() => {
             exportButton.textContent = originalText;
             exportButton.disabled = false;
           })
           .catch(err => {
             console.error('PDF generation failed:', err);
             alert('Failed to generate PDF. Please try again.');
-            exportButton.textContent = originalText;
-            exportButton.disabled = false;
           });
       } catch (err) {
         console.error('PDF setup failed:', err);
