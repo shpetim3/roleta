@@ -6,13 +6,27 @@
   <title>Roleta Termoizoluse</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-  <style>
-    @media print {
-      .no-print {
-        display: none !important;
-      }
+<style>
+  @media print {
+    .no-print {
+      display: none !important;
     }
-  </style>
+    #summarySection {
+      width: 100% !important;
+      max-width: none !important;
+      font-size: 12pt;
+      color: #000;
+      background: #fff;
+    }
+    #summarySection h2 {
+      font-size: 16pt;
+      margin-bottom: 20px;
+    }
+    #summarySection li {
+      page-break-inside: avoid;
+    }
+  }
+</style>
 </head>
 <body class="bg-gray-100 min-h-screen flex items-center justify-center">
   <div class="flex flex-col md:flex-row gap-6 p-6 w-full max-w-5xl">
@@ -150,34 +164,77 @@
       document.getElementById('grandTotal').textContent = "0.00 €";
     }
 
-function exportToPDF() {
-  const element = document.body; // Export entire visible content
-  const opt = {
-    margin: 10,
-    filename: 'roleta-summary.pdf',
-    html2canvas: { scale: 2 },
-    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-  };
+    function exportToPDF() {
+      const element = document.getElementById('summarySection');
+      
+      // Check if there's content to export
+      if (!document.getElementById('summaryList').hasChildNodes()) {
+        alert("No items in summary to export!");
+        return;
+      }
 
-  // Hide buttons before export
-  const buttons = document.querySelectorAll('.no-print');
-  buttons.forEach(btn => btn.style.display = 'none');
+      const opt = {
+        margin: [10, 10, 10, 10],
+        filename: 'roleta-summary.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { 
+          scale: window.devicePixelRatio || 2,
+          useCORS: true,
+          logging: false
+        },
+        jsPDF: { 
+          unit: 'mm', 
+          format: 'a4', 
+          orientation: 'portrait',
+          putOnlyUsedFonts: true,
+          floatPrecision: 16
+        }
+      };
 
-  const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+      // Create a clone of the summary section to modify for PDF
+      const clone = element.cloneNode(true);
+      clone.style.width = '190mm'; // A4 width minus margins
+      clone.style.padding = '10mm';
+      
+      // Remove no-print elements from clone
+      const buttons = clone.querySelectorAll('.no-print');
+      buttons.forEach(btn => btn.remove());
 
-  if (isMobile) {
-    alert("On mobile, the PDF will open in a new tab. Use your browser’s download or share option.");
-    html2pdf().from(element).set(opt).outputPdf('bloburl').then(url => {
-      window.open(url, '_blank');
-      buttons.forEach(btn => btn.style.display = '');
-    });
-  } else {
-    html2pdf().from(element).set(opt).save().then(() => {
-      buttons.forEach(btn => btn.style.display = '');
-    });
-  }
-}
+      // Add a header for the PDF
+      const header = document.createElement('div');
+      header.style.textAlign = 'center';
+      header.style.marginBottom = '20px';
+      header.innerHTML = '<h1 style="font-size: 20pt;">Roleta Termoizoluse Summary</h1>';
+      clone.insertBefore(header, clone.firstChild);
 
+      // Show loading state
+      const exportButton = document.querySelector('button[onclick="exportToPDF()"]');
+      const originalText = exportButton.textContent;
+      exportButton.textContent = 'Generating PDF...';
+      exportButton.disabled = true;
+
+      try {
+        html2pdf()
+          .set(opt)
+          .from(clone)
+          .save()
+          .then(() => {
+            exportButton.textContent = originalText;
+            exportButton.disabled = false;
+          })
+          .catch(err => {
+            console.error('PDF generation failed:', err);
+            alert('Failed to generate PDF. Please try again.');
+            exportButton.textContent = originalText;
+            exportButton.disabled = false;
+          });
+      } catch (err) {
+        console.error('PDF setup failed:', err);
+        alert('Failed to setup PDF generation. Please try again.');
+        exportButton.textContent = originalText;
+        exportButton.disabled = false;
+      }
+    }
   </script>
 </body>
 </html>
