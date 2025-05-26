@@ -6,36 +6,17 @@
   <title>Roleta Termoizoluse</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-<style>
-  @media print {
-    .no-print {
-      display: none !important;
+  <style>
+    @media print {
+      .no-print {
+        display: none !important;
+      }
+      #summarySection {
+        width: 100% !important;
+        max-width: none !important;
+      }
     }
-    #summarySection {
-      width: 100% !important;
-      max-width: 190mm !important;
-      font-size: 12pt;
-      color: #000;
-      background: #fff;
-      padding: 10mm;
-    }
-    #summarySection h2 {
-      font-size: 16pt;
-      margin-bottom: 20px;
-    }
-    #summarySection li {
-      page-break-inside: avoid;
-    }
-  }
-  @media screen and (max-width: 640px) {
-    #summarySection {
-      padding: 4mm;
-    }
-    .flex-col.md\\:flex-row {
-      flex-direction: column;
-    }
-  }
-</style>
+  </style>
 </head>
 <body class="bg-gray-100 min-h-screen flex items-center justify-center">
   <div class="flex flex-col md:flex-row gap-6 p-6 w-full max-w-5xl">
@@ -75,7 +56,7 @@
     </div>
 
     <!-- Summary Section -->
-    <div class="bg-white shadow-xl rounded-2xl p-6 w-full md:w-1/2" id="summarySection">
+    <div class="bg-white shadow-xl rounded-2xl p-6 w-full md:w-1/2" id="summarySection" style="overflow: visible;">
       <h2 class="text-xl font-bold mb-4">Total Summary</h2>
       <ul id="summaryList" class="space-y-3"></ul>
 
@@ -109,7 +90,7 @@
         return;
       }
 
-      const area = (width * height) / 10000; // convert cm² to m²
+      const area = (width * height) / 10000;
       let pricePerSqM = 0;
       let glassLabel = "";
 
@@ -175,100 +156,28 @@
 
     function exportToPDF() {
       const element = document.getElementById('summarySection');
-      
-      // Check if there's content to export
-      if (!document.getElementById('summaryList').hasChildNodes()) {
-        alert("No items in summary to export!");
-        return;
-      }
-
       const opt = {
-        margin: [8, 8, 8, 8], // Reduced margins for mobile
+        margin: 10,
         filename: 'roleta-summary.pdf',
-        image: { type: 'jpeg', quality: 0.95 },
-        html2canvas: { 
-          scale: Math.min(window.devicePixelRatio, 2), // Cap scale for mobile
-          useCORS: true,
-          logging: false,
-          windowWidth: 794, // A4 width in pixels at 96 DPI
-          windowHeight: 1123 // A4 height in pixels at 96 DPI
-        },
-        jsPDF: { 
-          unit: 'mm', 
-          format: 'a4', 
-          orientation: 'portrait',
-          putOnlyUsedFonts: true,
-          floatPrecision: 16
-        }
+        html2canvas: { scale: 2, scrollY: 0 },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
       };
 
-      // Create a clone of the summary section
-      const clone = element.cloneNode(true);
-      clone.style.width = '190mm';
-      clone.style.padding = '8mm';
-      clone.style.boxSizing = 'border-box';
+      const buttons = document.querySelectorAll('.no-print');
+      buttons.forEach(btn => btn.style.display = 'none');
 
-      // Remove no-print elements from clone
-      const buttons = clone.querySelectorAll('.no-print');
-      buttons.forEach(btn => btn.remove());
+      const isMobile = /Mobi|Android/i.test(navigator.userAgent);
 
-      // Add a header for the PDF
-      const header = document.createElement('div');
-      header.style.textAlign = 'center';
-      header.style.marginBottom = '15px';
-      header.innerHTML = '<h1 style="font-size: 18pt;">Roleta Termoizoluse Summary</h1>';
-      clone.insertBefore(header, clone.firstChild);
-
-      // Show loading state
-      const exportButton = document.querySelector('button[onclick="exportToPDF()"]');
-      const originalText = exportButton.textContent;
-      exportButton.textContent = 'Generating PDF...';
-      exportButton.disabled = true;
-
-      try {
-        html2pdf()
-          .set(opt)
-          .from(clone)
-          .toPdf()
-          .get('pdf')
-          .then(pdf => {
-            const blob = pdf.output('blob');
-            const url = URL.createObjectURL(blob);
-            
-            // For mobile, prompt user to download manually
-            if (/Mobi|Android/i.test(navigator.userAgent)) {
-              alert('PDF generated! Tap the link below to download or share.');
-              const link = document.createElement('a');
-              link.href = url;
-              link.download = 'roleta-summary.pdf';
-              link.style.display = 'block';
-              link.className = 'no-print text-blue-600 underline text-center mt-2';
-              link.textContent = 'Download PDF';
-              document.getElementById('summarySection').appendChild(link);
-              
-              // Auto-remove link after 30 seconds
-              setTimeout(() => {
-                if (link.parentNode) link.parentNode.removeChild(link);
-                URL.revokeObjectURL(url);
-              }, 30000);
-            } else {
-              pdf.save();
-              URL.revokeObjectURL(url);
-            }
-          })
-          .finally(() => {
-            exportButton.textContent = originalText;
-            exportButton.disabled = false;
-          })
-          .catch(err => {
-            console.error('PDF generation failed:', err);
-            alert('Failed to generate PDF. Please try again.');
-          });
-      } catch (err) {
-        console.error('PDF setup failed:', err);
-        alert('Failed to setup PDF generation. Please try again.');
-        exportButton.textContent = originalText;
-        exportButton.disabled = false;
+      if (isMobile) {
+        alert("On mobile, the PDF will open in a new tab. Use your browser’s download or share option.");
+        html2pdf().from(element).set(opt).outputPdf('bloburl').then(url => {
+          window.open(url, '_blank');
+          buttons.forEach(btn => btn.style.display = '');
+        });
+      } else {
+        html2pdf().from(element).set(opt).save().then(() => {
+          buttons.forEach(btn => btn.style.display = '');
+        });
       }
     }
   </script>
